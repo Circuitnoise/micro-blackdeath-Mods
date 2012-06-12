@@ -126,7 +126,7 @@ void hodge(unsigned char* cellies){
   unsigned char q,k1,k2,g;
   static unsigned char x=CELLLEN+1;
   static unsigned char flag=0;
-  unsigned char *newcells, *cells;
+  unsigned char *newcells, *cells, *swap;
 
   if (flag&0x01==0) {
     cells=cellies; newcells=&cells[MAX_SAM/2];
@@ -163,9 +163,10 @@ void hodge(unsigned char* cellies){
   x++;
   if (x>((MAX_SAM/2)-CELLLEN-1)) {
     x=CELLLEN+1;
-    //    swap = cells; cells = newcells; newcells = swap;
-    // how to swop over???
-  flag^=0x01;
+    *swap = *cells;
+    *cells = *newcells;
+    *newcells = *swap;
+    flag^=0x01;
   }
 }
 
