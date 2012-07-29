@@ -26,7 +26,7 @@ TODO:
 ** crashing still!!!!
 
 */
-
+#define DEBUG 0
 #define F_CPU 16000000UL
 
 #include <stdio.h>
@@ -69,7 +69,7 @@ TODO:
 #define susceptible 0
 #define tau 2
 
-signed char insdir,dir;
+signed char insdir,dir; // Defines the direction
 unsigned char filterk, cpu, plague, step, hardk, fhk, instruction, instructionp, IP, controls, hardware, samp, count,qqq;
 
 static unsigned char xxx[MAX_SAM+12];
@@ -107,11 +107,19 @@ void adc_init(void)
 Sets Channel, Read and Return ADC Results
 */
 unsigned char adcread(unsigned char channel){
+	
+    #ifndef DEBUG
 	ADMUX &= 0xF8; // clear existing channel selection
 	ADMUX |=(channel & 0x07); // set channel/pin
 	ADCSRA |= (1 << ADSC);  // ADC Start Conversion
 	loop_until_bit_is_set(ADCSRA, ADIF); /* Wait for ADC Interrupt Flag, will happen soon */
 	return(ADCH); // Return Conversion Results (Only low bits from ADC Data Register)
+	#endif
+	
+	#ifdef DEBUG
+	 return rand()%255;
+	#endif
+	
 }
 /*
 Create a array of values from output signal(acdread(3)) as sample storage
@@ -577,12 +585,13 @@ unsigned char btunturn(unsigned char* cells, unsigned char IP){
 }
 
 unsigned char btg(unsigned char* cells, unsigned char IP){
-	unsigned char x;
+	unsigned char x=0;
 	while (x<20 && cells[omem]!=0){
 		if (dcdir==0) omem+=1;
 		else if (dcdir==1) omem-=1;
 		else if (dcdir==2) omem+=16;
 		else if (dcdir==3) omem-=16;
+		x++;
 	}
 	return IP;
 }
@@ -731,27 +740,31 @@ void mutate(unsigned char* cells){
   unsigned char x,y;
   for (y=0;y<cells[0];y++){
     x=adcread(3); // Read output signal
-  cells[x]^=(x&0x0f); //Todo::Modifkator erklΣren
+  cells[x]^=(x&0x0f); //copies the bit if it is set in one operand (but not both) 0b00001111
   }
 }
 /*
 	Plague Hodge Implementation
+	Switches every 110 Cycles the cells array with newcells array
 	 
 */
 
 void hodge(unsigned char* cellies){
-  int sum=0, numill=0, numinf=0;
+  int sum=0, numill=0, numinf=0; // max value 32767
   unsigned char q,k1,k2,g;
-  static unsigned char x=CELLLEN+1; // 
-  static unsigned char flag=0; // Flag ensures only one time initialization
-  unsigned char *newcells, *cells, *swap;
+  static unsigned char CoreCellx=CELLLEN+1; // raises every time function is called
+  static unsigned char flag=0; // Toggle Flag
+  static unsigned char *newcells, *cells, *swap;  //Changed variables to static
 
+  // Swap where the cellies go
   if ((flag&0x01)==0) {
-    *cells=*cellies; newcells=&cells[MAX_SAM/2]; //TODO:: try *cells=*cellies
+	  cells=cellies; 
+	  newcells=&cells[MAX_SAM/2];
   }
   else {
-    cells=&cells[MAX_SAM/2]; *newcells=*cellies; //TDOO:: same here *newcells=*cellies
-  }      
+	  cells=&cells[MAX_SAM/2];
+	  newcells=cellies;
+  }
 
   // Sets Reference Values
   q=cells[0];k1=cells[1];k2=cells[2];g=cells[3];
@@ -759,39 +772,43 @@ void hodge(unsigned char* cellies){
   if (k2==0) k2=1;
 
   // Calculate sum of 3 neighbor cells values
-  sum=cells[x]+cells[x-1]+cells[x+1]+cells[x-CELLLEN]+cells[x+CELLLEN]+cells[x-CELLLEN-1]+cells[x-CELLLEN+1]+cells[x+CELLLEN-1]+cells[x+CELLLEN+1];
+  sum=cells[CoreCellx]+cells[CoreCellx-1]+cells[CoreCellx+1]+cells[CoreCellx-CELLLEN]+cells[CoreCellx+CELLLEN]+cells[CoreCellx-CELLLEN-1]+cells[CoreCellx-CELLLEN+1]+cells[CoreCellx+CELLLEN-1]+cells[CoreCellx+CELLLEN+1];
 
   // Decide which one is infected or ill.
-  if (cells[x-1]==(q-1)) numill++; else if (cells[x-1]>0) numinf++;
-  if (cells[x+1]==(q-1)) numill++; else if (cells[x+1]>0) numinf++;
-  if (cells[x-CELLLEN]==(q-1)) numill++; else if (cells[x-CELLLEN]>0) numinf++;
-  if (cells[x+CELLLEN]==(q-1)) numill++; else if (cells[x+CELLLEN]>0) numinf++;
-  if (cells[x-CELLLEN-1]==q) numill++; else if (cells[x-CELLLEN-1]>0) numinf++;
-  if (cells[x-CELLLEN+1]==q) numill++; else if (cells[x-CELLLEN+1]>0) numinf++;
-  if (cells[x+CELLLEN-1]==q) numill++; else if (cells[x+CELLLEN-1]>0) numinf++;
-  if (cells[x+CELLLEN+1]==q) numill++; else if (cells[x+CELLLEN+1]>0) numinf++;
+  if (cells[CoreCellx-1]==(q-1)) numill++; else if (cells[CoreCellx-1]>0) numinf++;
+  if (cells[CoreCellx+1]==(q-1)) numill++; else if (cells[CoreCellx+1]>0) numinf++;
+  if (cells[CoreCellx-CELLLEN]==(q-1)) numill++; else if (cells[CoreCellx-CELLLEN]>0) numinf++;
+  if (cells[CoreCellx+CELLLEN]==(q-1)) numill++; else if (cells[CoreCellx+CELLLEN]>0) numinf++;
+  if (cells[CoreCellx-CELLLEN-1]==q) numill++; else if (cells[CoreCellx-CELLLEN-1]>0) numinf++;
+  if (cells[CoreCellx-CELLLEN+1]==q) numill++; else if (cells[CoreCellx-CELLLEN+1]>0) numinf++;
+  if (cells[CoreCellx+CELLLEN-1]==q) numill++; else if (cells[CoreCellx+CELLLEN-1]>0) numinf++;
+  if (cells[CoreCellx+CELLLEN+1]==q) numill++; else if (cells[CoreCellx+CELLLEN+1]>0) numinf++;
 
-  if(cells[x] == 0)
-    newcells[x%128] = floor(numinf / k1) + floor(numill / k2);
-  else if(cells[x] < q - 1)
-    newcells[x%128] = floor(sum / (numinf + 1)) + g;
+  // Sets the Values of Cells[0-127] 
+  if(cells[CoreCellx] == 0) 
+    // there is a slight chance cell value will raise up to 2
+	// sets the lowest integral number -maximal value is 2 = 1(numinf/k1) + 1 (numill/k2)
+	newcells[CoreCellx%128] = floor(numinf / k1) + floor(numill / k2);
+  else if(cells[CoreCellx] < q - 1) // if cells[CoreCellx]<cells[0]+1 
+    
+	newcells[CoreCellx%128] = floor(sum / (numinf + 1)) + g;
   else
-    newcells[x%128] = 0;
+    newcells[CoreCellx%128] = 0;
 
-  if(newcells[x%128] > q - 1)
-    newcells[x%128] = q - 1;
+  if(newcells[CoreCellx%128] > q - 1)
+    newcells[CoreCellx%128] = q - 1;
 
-  x++;
-  if (x>((MAX_SAM/2)-CELLLEN-1)) {
-    x=CELLLEN+1;
+  CoreCellx++; // next time take the next cell
+  
+  // if CoreCellx reaches 110, reset CoreCellx, swap cells and newcells;
+  if (CoreCellx>((MAX_SAM/2)-CELLLEN-1)) {
+    CoreCellx=CELLLEN+1;
     //    swap = cells; cells = newcells; newcells = swap;
-    // how to swop over??? 
-	*swap = *cells;
-	*cells = *newcells;
-	*newcells = *swap;
+	swap = cells;
+	cells = newcells;
+	newcells = swap;
 	
-	//TODO:: Implementation missing
-  flag^=0x01;
+  flag^=0x01; // Toggle Flag
   }
 }
 /*
@@ -830,9 +847,9 @@ void cel(unsigned char* cells){
 	Sets value of cells to recovered(129), susceptible(0) or 1
 */
 void SIR(unsigned char* cellies){
-  unsigned char cell,x,sum=0;
-  static unsigned char flag=0;
-  unsigned char *newcells, *cells;
+  unsigned char cell,x=0;
+  static unsigned char flag=0; //Toggle Flag
+  unsigned char *newcells, *cells=0;
   unsigned char kk=cellies[0], p=cellies[1];
 
   if ((flag&0x01)==0) {
@@ -842,11 +859,11 @@ void SIR(unsigned char* cellies){
     cells=&cells[MAX_SAM/2]; newcells=cellies;
   }      
 
-
   for (x=CELLLEN;x<((MAX_SAM/2)-CELLLEN);x++){
     cell = cells[x];
     newcells[x]=cell;
-    if (cell >= kk) newcells[x] = recovered;                                                 else if ((cell>0 && cell<kk)){
+    if (cell >= kk) newcells[x] = recovered;                                                 
+	else if ((cell>0 && cell<kk)){
       newcells[x]++;                                                       
     }
     else if (cell == susceptible) {   
@@ -870,7 +887,7 @@ void life(unsigned char* cellies){
   unsigned char x, sum;
 
   static unsigned char flag=0;
-  unsigned char *newcells, *cells;
+  unsigned char *newcells, *cells=0;
 
   if ((flag&0x01)==0) {
     cells=cellies; newcells=&cells[MAX_SAM/2];
@@ -891,7 +908,7 @@ void life(unsigned char* cellies){
 }
 
 
-void main(void)
+int main(void)
 {
   
   unsigned char *cells=xxx;
@@ -937,13 +954,13 @@ void main(void)
   sbi(PORTD,PORTD1); // pwm to filter
   cbi(PORTD,PORTD2); // no feedback
 
-  instructionp=0; // InstructionPointer selects which Algorithm is used
+  instructionp=0; // InstructionPointer selects cell value is used for the next instruction select
   insdir=1;  // Step size for instruction Pointer - only changes in plwalk()
   dir=1;	// Direction for the next step
   btdir=0;
   dcdir=0;
 
-   while(1){
+  while(1){
 
     IP=adcread(0);		 // read Poti 1 top    /  left of panel mount jack
     hardware=adcread(1); // read Poti 2 middle /   top of panel mount jack
@@ -1154,5 +1171,6 @@ void main(void)
       filterk=4;
       }
   }
+  return 0;
 }
  
