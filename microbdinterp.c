@@ -20,6 +20,7 @@ Modified by circuitnoise
 
 ~ more documentation
 ~ code refactoring
+~ merge changes of orig. code from Jan 23, 2013
 
 TODO:
 
@@ -96,7 +97,7 @@ void adc_init(void)
 	cbi(ADMUX, REFS1); // clear ReferenceSelection Bit1
 	sbi(ADMUX, REFS0); // set voltage reference to AVCC
 	sbi(ADMUX, ADLAR); //8 bits (ADC Left Adjust Result)
-	sbi(ADCSRA, ADPS2); // set ADC clock here TODO: Warum ADPS2? Wie schnell lΣuft der Chip?
+	sbi(ADCSRA, ADPS2); // set ADC clock here TODO: Warum ADPS2? Wie schnell läuft der Chip?
 	//	sbi(ADCSRA, ADPS0); // change speed here!
 	sbi(ADCSRA, ADEN); // ADC Enable - activate!
 	DDRC = 0x00;
@@ -108,18 +109,18 @@ Sets Channel, Read and Return ADC Results
 */
 unsigned char adcread(unsigned char channel){
 	
-    #ifndef DEBUG
+    //#ifndef DEBUG
 	ADMUX &= 0xF8; // clear existing channel selection
 	ADMUX |=(channel & 0x07); // set channel/pin
 	ADCSRA |= (1 << ADSC);  // ADC Start Conversion
 	loop_until_bit_is_set(ADCSRA, ADIF); /* Wait for ADC Interrupt Flag, will happen soon */
 	return(ADCH); // Return Conversion Results (Only low bits from ADC Data Register)
-	#endif
+	/*#endif
 	
 	#ifdef DEBUG
 	 return rand()%255;
 	#endif
-	
+	*/
 }
 /*
 Create a array of values from output signal(acdread(3)) as sample storage
@@ -347,49 +348,49 @@ unsigned char plwalk(unsigned char* cells, unsigned char IP){
 
 unsigned char bfinc(unsigned char* cells, unsigned char IP){
 	omem++;
-	return IP++;
+	return ++IP;
 }
 
 unsigned char bfdec(unsigned char* cells, unsigned char IP){
 	omem--;
-	return IP++;
+	return ++IP;
 }
 
 unsigned char bfincm(unsigned char* cells, unsigned char IP){
 	cells[omem]++;
-	return IP++;
+	return ++IP;
 }
 
 unsigned char bfdecm(unsigned char* cells, unsigned char IP){
 	cells[omem]--;
-	return IP++;
+	return ++IP;
 }
 
 unsigned char bfoutf(unsigned char* cells, unsigned char IP){
 	//  OCR1A=(int)cells[omem]<<filterk;
 	(*filtermod[qqq]) ((int)cells[omem]);
-	return IP++;
+	return ++IP;
 }
 
 unsigned char bfoutp(unsigned char* cells, unsigned char IP){
 	OCR0A=cells[omem];
-	return IP++;
+	return ++IP;
 }
 
 unsigned char bfin(unsigned char* cells, unsigned char IP){
 	cells[omem] = adcread(3); //get output signal
-	return IP++;
+	return ++IP;
 }
 
 unsigned char bfbrac1(unsigned char* cells, unsigned char IP){
 	cycle++;
 	if(cycle>=20) cycle=0;
 	ostack[cycle] = IP;
-	return IP++;
+	return ++IP;
 }
 
 unsigned char bfbrac2(unsigned char* cells, unsigned char IP){
-	int i;
+	int i=0;
 	if(cells[omem] != 0) i = ostack[cycle]-1;
 	cycle--;
 	if(cycle<-1) cycle=20;
@@ -759,10 +760,10 @@ void hodge(unsigned char* cellies){
   // Swap where the cellies go
   if ((flag&0x01)==0) {
 	  cells=cellies; 
-	  newcells=&cells[MAX_SAM/2];
+	  newcells=&cellies[MAX_SAM/2];
   }
   else {
-	  cells=&cells[MAX_SAM/2];
+	  cells=&cellies[MAX_SAM/2];
 	  newcells=cellies;
   }
 
@@ -853,10 +854,10 @@ void SIR(unsigned char* cellies){
   unsigned char kk=cellies[0], p=cellies[1];
 
   if ((flag&0x01)==0) {
-    cells=cellies; newcells=&cells[MAX_SAM/2];
+    cells=cellies; newcells=&cellies[MAX_SAM/2];
   }
   else {
-    cells=&cells[MAX_SAM/2]; newcells=cellies;
+    cells=&cellies[MAX_SAM/2]; newcells=cellies;
   }      
 
   for (x=CELLLEN;x<((MAX_SAM/2)-CELLLEN);x++){
@@ -890,10 +891,10 @@ void life(unsigned char* cellies){
   unsigned char *newcells, *cells=0;
 
   if ((flag&0x01)==0) {
-    cells=cellies; newcells=&cells[MAX_SAM/2];
+    cells=cellies; newcells=&cellies[MAX_SAM/2];
   }
   else {
-    cells=&cells[MAX_SAM/2]; newcells=cellies;
+    cells=&cellies[MAX_SAM/2]; newcells=cellies;
   }      
 
   for (x=CELLLEN+1;x<((MAX_SAM/2)-CELLLEN-1);x++){
@@ -1024,7 +1025,7 @@ int main(void)
 		// direct output
 	    instruction=cells[instructionp];
 	    OCR0A=instruction;
-	    instructionp+=insdir;
+	    instructionp+=dir;  // changed from insdir
 	    break;
 	  case 6:
 		// Red Death Algorithms
@@ -1052,7 +1053,7 @@ int main(void)
 
 	// Filter or Feedback required?
     hardk=hardware%8; 
-
+	
     switch(hardk){
     case 0:
       cbi(PORTD,PORTD2); // no feedback
